@@ -1,0 +1,1 @@
+/home/jcsombria/Workspace/ReNoLabsAlpha/public/scripts/vrisa-library.js
