@@ -14,7 +14,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="v in model" :key="v.id">
+          <tr v-for="v in entries" :key="v.id">
             <td class="align-middle"><input type="checkbox" /></td>
             <td class="align-middle"><i @click="edit(v.name)" class="bi bi-pencil" style="cursor:pointer"></i></td>
             <td class="align-middle"><i @click="remove(v.name)" class="bi bi-trash" style="cursor:pointer"></i></td>
@@ -29,57 +29,36 @@
   </edition-panel>
 </template>
 
-<script>
-import EditionPanel from './EditionPanel.vue';
-export default {
-  components: {
-    EditionPanel,
-  },
-  props: ['title', 'columns', 'fields', 'fields_display', 'model_name'],
-  data() {
-    return {
-      model: [],
-      query: {
-        // include: ['view', 'controller'],
-      },
-    };
-  },
-  methods: {
-    fields_value(row, key) {
-      return this.fields_display && key in this.fields_display
-        ? this.fields_display[key](row)
-        : row[key];
-    },
-    reload() {
-      this.$root.session.query(`${this.model_name}/get`, this.query)
-        .then(async (response) => {
-          this.model = await response.json();
-        })
-        .catch((error) => {
-          console.log(error);
-          // showMessage(`Cannot load ${this.model_name} from server.`, 'modalGenericMessage');
-        });
-    },
-    edit(entity) {
-      // console.log(`/${this.model_name}/${entity.name}`);
-      // this.$router.push(`/${this.model_name}/${entity.name}`);
-    },
-    remove(entity) {
-      // console.log(entity);
-      // post(
-      //   `/admin/q/${this.model_name}/delete`,
-      //   JSON.stringify({ where: { name: entity } }),
-      //   (result) => {
-      //     location.reload();
-      //   },
-      //   (error) => {
-      //     console.log(error);
-      //   }
-      // );
-    },
-  },
-  mounted() {
-    this.reload();
-  },
+<script setup>
+import EditionPanel from '@/components/admin/EditionPanel.vue';
+import NavBar from '@/components/NavBar.vue';
+import { inject, onMounted, reactive } from 'vue';
+import { useRouter } from 'vue-router';
+
+const session = inject('session');
+const props = defineProps(['title', 'columns', 'fields', 'fields_display', 'model_name']);
+const entries = reactive([]);
+var query = {};
+const router = useRouter();
+
+function fields_value(row, key) {
+  return props.fields_display && key in props.fields_display
+    ? props.fields_display[key](row)
+    : row[key];
+};
+
+function edit(name) {
+  router.push(`/${props.model_name}/${name}`);
 }
+
+function reload() {
+  session.query(`${props.model_name}/get`, props.query)
+    .then(response => response.json())
+    .then(result => Object.assign(entries, result))
+    .catch((error) => {
+      console.log(error);
+    });
+}
+
+onMounted(() => { reload(); });
 </script>

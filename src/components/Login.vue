@@ -33,73 +33,30 @@
   </div>
 </template>
 
-<script>
-export default {
-  data() {
-    return {
-      activities: [],
-      title: 'VRLABS',
-      message: '',
-      username: '',
-      password: '',
-    };
-  },
-  methods: {
-    submit(ev) {
-      ev.preventDefault();
-      this.$root.session
-        .login(this.username, this.password)
-        .then((user) => {
-          this.$router.push('/home');
-        })
-        .catch((error) => {
-          this.message = error.message;
-        });
-    },
-  },
+<script setup>
+import { inject } from 'vue';
+import { onBeforeRouteUpdate, useRouter } from 'vue-router';
 
-  beforeRouteEnter(to, from, next) {
-    next(async (vm) => {
-      const user = await vm.$root.session.authenticate().catch((error) => { });
-      console.log('USER')
-      console.log(user)
-      // if (!user) window.location.href = '/';
-      // return vm.$root.session.user ? '/home' : '/';
+const router = useRouter();
+const session = inject('session');
+
+let message = '';
+let username = '';
+let password = '';
+
+function submit(ev) {
+  ev.preventDefault();
+  session
+    .login(username, password)
+    .then((user) => {
+      router.push('/home');
+    })
+    .catch((error) => {
+      message = error.message;
     });
-  },
+}
 
-  // mounted() {
-  //   if (this.$root.session && this.$root.session.user) {
-  //     this.$router.push('/home');
-  //   }
-  // },
-};
+onBeforeRouteUpdate(async (to, from) => {
+  await vm.session.authenticate().catch((error) => { });
+});
 </script>
-
-<style scoped>
-/* .login-block {
-  padding: 20px;
-  margin: 0 auto;
-}
-
-.login-block input {
-  width: 100%;
-  height: 42px;
-  box-sizing: border-box;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  margin-bottom: 20px;
-  font-size: 14px;
-  padding: 0 20px 0 50px;
-} */
-
-/* .login-block input#username {
-  background: #fff url(../images/username_icon.png) 20px top no-repeat;
-  background-size: 16px 80px;
-}
-
-.login-block input#password {
-  background: #fff url(../images/password_icon.png) 20px top no-repeat;
-  background-size: 16px 80px;
-} */
-</style>

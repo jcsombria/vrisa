@@ -1,17 +1,26 @@
-import { createApp } from 'vue/dist/vue.esm-bundler';
+import { createApp } from 'vue';
 import App from './App.vue';
 import { createRouter, createWebHashHistory } from 'vue-router';
 import VueCookies from 'vue-cookies';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap';
 
-import Login from './components/Login.vue';
-import Home from './components/Home.vue';
-import AdminHome from './components/admin/Home.vue';
-import Table from './components/admin/Table.vue';
-import RemoteLab from './components/RemoteLab.vue';
+import Login from '@/components/Login.vue'
+import Home from '@/components/Home.vue';
+import AdminHome from '@/components/admin/Home.vue';
+import Table from '@/components/admin/Table.vue';
+import RemoteLab from '@/components/RemoteLab.vue';
+import ActivityEditor from '@/components/admin/ActivityEditor.vue'
 
-const session = new Session('http://localhost:8080');
+import {
+  Session,
+  ActivityModel,
+  ViewModel,
+  ControllerModel,
+  UserModel,
+  CourseModel,
+} from '@/assets/vrisa-library.js';
+
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -25,24 +34,22 @@ const router = createRouter({
     { path: '/admin/users', component: Table, props: UserModel },
     { path: '/admin/courses', component: Table, props: CourseModel },
     { path: '/remotelab', component: RemoteLab, props: { builtin: true } },
-    // {path: '/activity/:name', component: ActivityPanel },
+    { path: '/activity/:name', component: ActivityEditor },
     // {path: '/view', component: ViewsPanel },
     // {path: '/courses/edit', component: CourseEditorPanel },
   ],
 });
 
+const session = new Session('http://localhost:8080');
 router.beforeResolve(async (to, from, next) => {
-  const user = await session.authenticate().catch((error) => {});
-  // console.log('RESOLVIN')
-  // console.log(user)
-  // console.log(to.path)
-  // if (user && to.path == '/') {
-  //   return next('/');
-  // }
-  // if (!user && to.path != '/') {
-  //   return next('/');
-  // }
-  next();
+  const user = await session.authenticate()
+    .then(user => {
+      console.log(`The user ${!user || user.username} is authenticated: ${session.user != null}`)
+      return (to.path === '/') ? next('/home') : next();
+    })
+    .catch(error => {
+      return to.path !== '/' ? next('/') : next();
+    });
 });
 
 createApp(App, { session }).use(router).use(VueCookies).mount('#app');
