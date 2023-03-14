@@ -99,13 +99,17 @@ export class User {
     return this.role == 'admin';
   }
 
+  get isProfessor() {
+    return this.role == 'admin' || this.role == 'professor';
+  }
+
   get activities() {}
 }
 
 export class Session {
   constructor(server) {
     this._authenticated = false;
-    this.server = server || 'http://localhost:8080';
+    this.server = server || 'http://localhost/api/';
   }
 
   decode(token) {
@@ -224,7 +228,7 @@ export class Session {
   }
 
   getRemoteURL(activity) {
-    return `${this.server}/remotelab?name=${activity}&accessToken=${this.activityToken}`;
+    return `/remotelab?name=${activity}&accessToken=${this.activityToken}`;
   }
 
   getExperiments() {

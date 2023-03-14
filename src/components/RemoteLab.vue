@@ -4,10 +4,12 @@
       <div class="card-header text-center">
         <div class="row align-middle">
           <div v-if="lab.started" class="col">
-            <button v-show="lab.counter == 0" @click="warnStop()" type="button" class="btn btn-outline-danger"><i
+            <button v-show="lab.counter == 0" @click="warnStop()" type="button" class="btn btn-outline-danger mb-3"><i
                 class="bi bi-stop"></i>Terminar actividad</button>
+            <h6>Tiempo restante: <span class="text-primary fw-bold">{{ remaining }}</span></h6>
           </div>
           <div v-else class="col">
+            <div v-if="lab.error.length > 0" class="alert alert-warning mt-3" role="alert">{{ lab.error }}</div>
             <button @click="start()" type="button" class="btn btn-outline-success"><i class="bi bi-play" />Comenzar
               Actividad</button>
           </div>
@@ -33,28 +35,21 @@
         <div v-if="lab.started" class="container-fluid">
           <slot name="content">
             <!-- Embedded version -->
-            <div v-show="lab.extern" class="row row-cols-1 row-cols-lg-3 row-cols-xl-4">
-              <div class="col col-lg-8 col-xl-10">
-                <div class="container-fluid" v-html="lab"></div>
-              </div>
-              <div class="col col-lg-4 col-xl-2"></div>
-              <!--div class="row row-cols-1 row-cols-sm-2"-->
-              <!-- /div-->
-            </div>
+            <div v-show="lab.extern" class="container-fluid" v-html="lab.html"></div>
 
             <!-- Built-in version -->
-            <div v-show="builtin" class="row">
+            <div v-show="!lab.extern" class="row">
               <h1 class="text-center text-primary fw-bold" style="color: #990033">{{ lab.activity }}</h1>
             </div>
-            <div v-show="builtin" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3">
+            <div v-if="!lab.extern" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3">
               <Plot v-for="i in lab.graphs.keys()" id="plote" :graph="lab.graphs[i]" :signals="signals">{{ i }}
               </Plot>
               <ControlPanel :labcontrol="labcontrol" :controllerModel="lab.controllerModel"
                 :controls="lab.controls[0]">
               </ControlPanel>
             </div>
-          </slot>
 
+          </slot>
         </div>
 
         <!-- Activity description -->
@@ -87,18 +82,21 @@ const lab = reactive({
   started: false,
   activity: '',
   help: '',
+  html: '',
+  error: '',
+  extern: false,
   remainingSeconds: 0,
   clock: setInterval(() => {
-    if (lab.remainingSeconds > 0) {
-      lab.remainingSeconds--;
+    if (lab.remainingSeconds <= 0) {
+        return stop();
     }
+    lab.remainingSeconds--;
   }, 1000),
   counter: 0,
   waitingForDisconnection: false,
 });
-// const lab = '';
-const labcontrol = new LabInstance('127.0.0.1', '8080', { onsignals, ondisconnect });
-const disconnectionTimeout = 20;
+const labcontrol = new LabInstance('147.96.71.236', '80', { onsignals, ondisconnect });
+const disconnectionTimeout = 10;
 const signals = { time: [], ref: [], u: [], y: [] };
 // Computed
 const remaining = computed(() => {
@@ -107,8 +105,6 @@ const remaining = computed(() => {
   const seconds = format(lab.remainingSeconds % 60);
   return minutes > 0 ? `${minutes}:${seconds}` : seconds;
 });
-const extern = computed(() => !props.builtin);
-const remote = computed(() => session.getRemoteURL(activity));
 const counterMessage = computed(() => `Desconexión en ${lab.counter} segundos`);
 const showDescription = computed(() => lab.counter > 0);
 // Methods
@@ -144,33 +140,39 @@ function ondisconnect(reason) {
 
 async function start() {
   for (const s in signals) { signals[s] = []; }
+  const lab_content = '';
   session
     .start(lab.activity)
     .then((response) => {
       const activity = session.activity;
       lab.remainingSeconds = Math.floor(activity.exp - Date.now() / 1000);
       lab.controllerModel = activity.model;
-      lab.viewModel = activity.viewmodel;
-      lab.graphs = activity.viewmodel.graphs;
-      lab.controls = activity.viewmodel.controls;
 
-      return props.builtin
-        ? labcontrol.connect()
-        : session.get(remote).then((response) => response.text());
+      lab.extern = (activity.viewmodel == null);
+      if(activity.viewmodel) {
+        lab.viewModel = activity.viewmodel;
+        lab.graphs = activity.viewmodel.graphs;
+        lab.controls = activity.viewmodel.controls;
+      }
+      const url = session.getRemoteURL(lab.activity);
+      return lab.extern ?
+          session.get(url).then(async (response) => response.text()) 
+        : labcontrol.connect();
     })
     .then((config) => {
-      if (!props.builtin) {
-        lab.extern = config;
+      if (lab.extern) {
+        lab.html = config;
       }
       lab.started = true;
     })
     .catch((error) => {
       console.error(error);
+      lab.error = 'No se puede conectar con el laboratorio en este momento, prueba más tarde.';      
     });
 };
 
 async function warnStop() {
-  if (props.builtin) {
+  if (!lab.extern) {
     await labcontrol.disconnect();
   }
   const waitNextSecond = () => {
@@ -191,7 +193,7 @@ async function warnStop() {
 function cancelStop() {
   lab.waitingForDisconnection = false;
   lab.counter = 0;
-  if (props.builtin) {
+  if (!lab.extern) {
     labcontrol
       .connect()
       .then((response) => {
@@ -207,6 +209,7 @@ function stop() {
   lab.started = false;
   lab.waitingForDisconnection = false;
   lab.counter = 0;
+  labcontrol.disconnect();
 };
 
 onBeforeMount(async () => {

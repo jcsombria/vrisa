@@ -28,19 +28,19 @@
 
         <button type="submit" class="form-control btn btn-primary" value="Submit">Entrar</button>
       </form>
-      <div v-if="message.length > 0" class="alert alert-warning mt-3" role="alert">{{ message }}</div>
+      <div v-if="error.message.length > 0" class="alert alert-warning mt-3" role="alert">{{ error.message }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { inject } from 'vue';
+import { inject, reactive } from 'vue';
 import { onBeforeRouteUpdate, useRouter } from 'vue-router';
 
 const router = useRouter();
 const session = inject('session');
 
-let message = '';
+const error = reactive({ 'message': '' });
 let username = '';
 let password = '';
 
@@ -51,8 +51,8 @@ function submit(ev) {
     .then((user) => {
       router.push('/home');
     })
-    .catch((error) => {
-      message = error.message;
+    .catch((e) => {
+      error.message = e.message;
     });
 }
 
